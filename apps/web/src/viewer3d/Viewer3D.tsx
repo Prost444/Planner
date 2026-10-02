@@ -43,16 +43,17 @@ export function cameraPose(plan: Plan, view: ViewPreset): CameraPose | null {
       const toC = { x: c.x - ow.center.x, y: c.y - ow.center.y };
       const len = Math.hypot(toC.x, toC.y) || 1;
       const inward = { x: toC.x / len, y: toC.y / len };
-      const pos = { x: ow.center.x + inward.x * 25, y: ow.center.y + inward.y * 25 };
-      return { position: new THREE.Vector3(pos.x * S, 1.55, pos.y * S), target: new THREE.Vector3(c.x * S, 1.0, c.y * S) };
+      // Stand in the doorway (slightly outside the wall plane) and use a wide lens – small hallways are shallow.
+      const pos = { x: ow.center.x - inward.x * (w.thickness / 2 + 12), y: ow.center.y - inward.y * (w.thickness / 2 + 12) };
+      return { position: new THREE.Vector3(pos.x * S, 1.5, pos.y * S), target: new THREE.Vector3(c.x * S, 0.85, c.y * S), fov: 82 };
     }
     case "corner_left": {
       const b = room ? bbox(room.polygon) : ext;
-      return { position: new THREE.Vector3((b.min.x + 25) * S, 2.1, (b.min.y + 25) * S), target: new THREE.Vector3(c.x * S, 0.9, c.y * S) };
+      return { position: new THREE.Vector3((b.min.x + 20) * S, 1.9, (b.min.y + 20) * S), target: new THREE.Vector3(c.x * S, 0.8, c.y * S), fov: 78 };
     }
     case "corner_right": {
       const b = room ? bbox(room.polygon) : ext;
-      return { position: new THREE.Vector3((b.max.x - 25) * S, 2.1, (b.min.y + 25) * S), target: new THREE.Vector3(c.x * S, 0.9, c.y * S) };
+      return { position: new THREE.Vector3((b.max.x - 20) * S, 1.9, (b.min.y + 20) * S), target: new THREE.Vector3(c.x * S, 0.8, c.y * S), fov: 78 };
     }
     default:
       return null;
@@ -147,11 +148,17 @@ function ItemMesh({ item, selected, showLabel, onClick }: { item: PlacedItem; se
   const color = item.color ?? ITEM_KIND_COLORS[item.kind] ?? "#bdbdbd";
   const flat = item.kind === "rug";
   const h = flat ? 1 : item.h;
+  // Mezzanines and other high shelves are drawn translucent so top-down snapshots still show the floor beneath.
+  const translucent = item.elevation >= 180;
   return (
     <group position={[item.x, item.elevation + h / 2, item.y]} rotation={[0, (-item.rotation * Math.PI) / 180, 0]}>
-      <mesh castShadow={!flat} receiveShadow onClick={(e) => (e.stopPropagation(), onClick())}>
+      <mesh castShadow={!flat && !translucent} receiveShadow onClick={(e) => (e.stopPropagation(), onClick())}>
         <boxGeometry args={[item.w, h, item.d]} />
-        {tex ? <meshStandardMaterial map={tex} roughness={0.7} /> : <meshStandardMaterial color={color} roughness={item.kind === "mirror" ? 0.1 : 0.75} metalness={item.kind === "mirror" ? 0.6 : 0} />}
+        {tex ? (
+          <meshStandardMaterial map={tex} roughness={0.7} transparent={translucent} opacity={translucent ? 0.5 : 1} />
+        ) : (
+          <meshStandardMaterial color={color} roughness={item.kind === "mirror" ? 0.1 : 0.75} metalness={item.kind === "mirror" ? 0.6 : 0} transparent={translucent} opacity={translucent ? 0.5 : 1} />
+        )}
       </mesh>
       {selected && (
         <lineSegments>

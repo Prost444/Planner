@@ -75,6 +75,8 @@ async function compactTranscript(messages: Msg[]): Promise<Msg[]> {
     model: config.anthropic.model,
     max_tokens: 8000,
     system: "Ты сжимаешь историю работы ассистента по ремонту в сводку.",
+    // tool_use / tool_result blocks in the history require the tool definitions to be present
+    tools: [...toolDefinitions(), ...serverTools()],
     messages: [...textOnly, { role: "user", content: COMPACTION_PROMPT }],
   });
   const summary = res.content

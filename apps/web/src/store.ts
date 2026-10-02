@@ -104,6 +104,7 @@ interface State {
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let toastSeq = 1;
+let lastBusyToast = 0;
 
 export const useStore = create<State>((set, get) => ({
   projects: [],
@@ -172,7 +173,10 @@ export const useStore = create<State>((set, get) => ({
     const { project, agentBusy } = get();
     if (!project) return;
     if (agentBusy) {
-      get().toast("Агент сейчас работает с проектом — подождите окончания ответа", "info");
+      if (Date.now() - lastBusyToast > 4000) {
+        lastBusyToast = Date.now();
+        get().toast("Агент сейчас работает с проектом — подождите окончания ответа", "info");
+      }
       return;
     }
     const record = opts.record ?? true;
